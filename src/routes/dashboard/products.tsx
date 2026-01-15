@@ -15,6 +15,7 @@ import {
   Grid,
   List,
   Loader2,
+  FolderPlus,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/dashboard/products')({
@@ -45,6 +46,7 @@ function ProductsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -52,6 +54,13 @@ function ProductsPage() {
     price: '0',
     categoryId: 1,
     emoji: '🍽️',
+  })
+
+  // Category form state
+  const [categoryFormData, setCategoryFormData] = useState({
+    name: '',
+    description: '',
+    icon: '',
   })
 
   // Fetch products from database
@@ -97,6 +106,17 @@ function ProductsPage() {
     trpc.products.delete.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: [['products']] })
+      },
+    })
+  )
+
+  // Create category mutation
+  const createCategoryMutation = useMutation(
+    trpc.categories.create.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: [['categories']] })
+        setShowCategoryModal(false)
+        setCategoryFormData({ name: '', description: '', icon: '' })
       },
     })
   )
@@ -155,6 +175,16 @@ function ProductsPage() {
     }
   }
 
+  // Add category
+  const handleAddCategory = () => {
+    if (!categoryFormData.name.trim()) return
+    createCategoryMutation.mutate({
+      name: categoryFormData.name,
+      description: categoryFormData.description || undefined,
+      icon: categoryFormData.icon || undefined,
+    })
+  }
+
   if (productsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -171,13 +201,23 @@ function ProductsPage() {
           <h1 className="text-2xl font-bold text-white">Products</h1>
           <p className="text-gray-400">Manage your menu items</p>
         </div>
-        <Button
-          onClick={() => setShowAddModal(true)}
-          className="bg-cyan-500 hover:bg-cyan-600"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowCategoryModal(true)}
+            variant="outline"
+            className="border-slate-700"
+          >
+            <FolderPlus className="w-4 h-4 mr-2" />
+            Add Category
+          </Button>
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="bg-cyan-500 hover:bg-cyan-600"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -432,6 +472,79 @@ function ProductsPage() {
                 onClick={editingProduct ? handleSaveEdit : handleAdd}
               >
                 {editingProduct ? 'Save Changes' : 'Add Product'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Category Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-md">
+            <div className="p-6 border-b border-slate-700">
+              <h2 className="text-xl font-bold text-white">Add New Category</h2>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <Label className="text-gray-300">Category Name *</Label>
+                <Input
+                  value={categoryFormData.name}
+                  onChange={(e) =>
+                    setCategoryFormData({ ...categoryFormData, name: e.target.value })
+                  }
+                  className="bg-slate-700 border-slate-600 text-white mt-1"
+                  placeholder="Enter category name"
+                />
+              </div>
+
+              <div>
+                <Label className="text-gray-300">Description</Label>
+                <Input
+                  value={categoryFormData.description}
+                  onChange={(e) =>
+                    setCategoryFormData({ ...categoryFormData, description: e.target.value })
+                  }
+                  className="bg-slate-700 border-slate-600 text-white mt-1"
+                  placeholder="Optional description"
+                />
+              </div>
+
+              <div>
+                <Label className="text-gray-300">Icon Name</Label>
+                <Input
+                  value={categoryFormData.icon}
+                  onChange={(e) =>
+                    setCategoryFormData({ ...categoryFormData, icon: e.target.value })
+                  }
+                  className="bg-slate-700 border-slate-600 text-white mt-1"
+                  placeholder="e.g. Pizza, Coffee, Salad"
+                />
+                <p className="text-xs text-gray-500 mt-1">Lucide icon name for the category</p>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-700 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 border-slate-600"
+                onClick={() => {
+                  setShowCategoryModal(false)
+                  setCategoryFormData({ name: '', description: '', icon: '' })
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-cyan-500 hover:bg-cyan-600"
+                onClick={handleAddCategory}
+                disabled={!categoryFormData.name.trim() || createCategoryMutation.isPending}
+              >
+                {createCategoryMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Add Category
               </Button>
             </div>
           </div>

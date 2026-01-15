@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../lib/auth-context'
 import { useTRPC } from '../../integrations/trpc/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RoleGuard } from '../../components/RoleGuard'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { useSocket } from '@/hooks/useSocket'
 import {
   Search,
   Plus,
@@ -23,6 +24,7 @@ import {
   MessageSquare,
   Send,
   Receipt,
+  ChevronDown,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/dashboard/pos')({
@@ -46,6 +48,7 @@ function POSPage() {
   const { user } = useAuth()
   const trpc = useTRPC()
   const queryClient = useQueryClient()
+  const { socket, connect } = useSocket()
 
   const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -55,6 +58,17 @@ function POSPage() {
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null)
   const [showPayment, setShowPayment] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
+
+  // Connect socket on mount and listen for events
+  useEffect(() => {
+    connect()
+  }, [])
+
+  // Clear activeOrderId when table changes to prevent using old order
+  useEffect(() => {
+    setActiveOrderId(null)
+  }, [selectedTable])
+  const [showTables, setShowTables] = useState(true)
 
   // Fetch categories from database
   const { data: categories = [] } = useQuery(trpc.categories.list.queryOptions())
@@ -233,7 +247,7 @@ function POSPage() {
 
       // Refresh active order data
       await refetchActiveOrder()
-      
+      socket?.emit('orderToKitchen')
       // Clear cart but keep table selected for adding more items
       setCart([])
       alert('Order sent to kitchen!')
@@ -319,6 +333,23 @@ function POSPage() {
     return table ? table.tableNumber : 'N/A'
   }
 
+  // Listen for order item status changes
+  useEffect(() => {
+    if (!socket) return
+
+    const handleStatusChange = () => {
+      setTimeout(() => {
+        refetchActiveOrder()
+      }, 1000)
+    }
+
+    socket.on('orderItemStatusChanged', handleStatusChange)
+
+    return () => {
+      socket.off('orderItemStatusChanged', handleStatusChange)
+    }
+  }, [socket, refetchActiveOrder])
+
   if (productsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -366,39 +397,59 @@ function POSPage() {
 
         {/* Table Selection for Dine In */}
         {orderType === 'dine_in' && (
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-2">
-              Select Table {selectedTable && activeOrder && (
-                <span className="text-cyan-400 ml-2">
-                  (Table {getTableNumber(selectedTable)} has active order)
-                </span>
-              )}
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {tables.map((table) => {
-                const isOccupied = table.status === 'occupied'
-                return (
-                  <button
-                    key={table.id}
-                    type="button"
-                    onClick={() => setSelectedTable(table.id)}
-                    className={`px-3 py-2 rounded-lg font-medium transition-colors relative ${
-                      selectedTable === table.id
-                        ? 'bg-cyan-500 text-white'
-                        : isOccupied
-                          ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50 border border-amber-500/50'
-                          : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
-                    }`}
-                  >
-                    <UtensilsCrossed className="w-4 h-4 inline-block mr-1" />
-                    {table.tableNumber}
-                    {isOccupied && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full" />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="mb-4 bg-slate-800/50 rounded-lg border border-slate-700">
+            <button
+              type="button"
+              onClick={() => setShowTables(!showTables)}
+              className="w-full flex items-center justify-between p-3 text-left"
+            >
+              <h3 className="text-sm font-medium text-gray-400 flex items-center gap-2">
+                <UtensilsCrossed className="w-4 h-4" />
+                Select Table
+                {selectedTable && activeOrder && (
+                  <span className="text-cyan-400">
+                    (Table {getTableNumber(selectedTable)} has active order)
+                  </span>
+                )}
+                {selectedTable && !activeOrder && (
+                  <span className="text-green-400">
+                    (Table {getTableNumber(selectedTable)} selected)
+                  </span>
+                )}
+              </h3>
+              <ChevronDown
+                className={`w-5 h-5 text-gray-400 transition-transform ${showTables ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {showTables && (
+              <div className="px-3 pb-3">
+                <div className="flex flex-wrap gap-2">
+                  {tables.map((table) => {
+                    const isOccupied = table.status === 'occupied'
+                    return (
+                      <button
+                        key={table.id}
+                        type="button"
+                        onClick={() => setSelectedTable(table.id)}
+                        className={`px-3 py-2 rounded-lg font-medium transition-colors relative ${
+                          selectedTable === table.id
+                            ? 'bg-cyan-500 text-white'
+                            : isOccupied
+                              ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50 border border-amber-500/50'
+                              : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                        }`}
+                      >
+                        <UtensilsCrossed className="w-4 h-4 inline-block mr-1" />
+                        {table.tableNumber}
+                        {isOccupied && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

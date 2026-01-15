@@ -7,6 +7,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql&logoColor=white)](https://postgresql.org)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![tRPC](https://img.shields.io/badge/tRPC-11-FF4154?logo=trpc&logoColor=white)](https://trpc.io)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-2.3-4FC08D?logo=drizzle-orm&logoColor=white)](https://drizzle-team.com/orm/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-010101?logo=socket.io&logoColor=white)](https://socket.io)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
@@ -21,7 +24,7 @@ This isn't just another POS system. It's a **complete restaurant operations plat
 
 - 🚀 **Blazing fast** — Sub-second order entry, instant kitchen updates
 - 📱 **Works everywhere** — Desktop, tablet, or TV displays
-- 🔄 **Real-time sync** — Everyone sees the same data, instantly
+- 🔄 **Real-time sync** — WebSocket-powered updates via Socket.IO, everyone sees the same data instantly
 - 🎯 **Role-optimized** — Each staff member gets exactly what they need
 
 ---
@@ -65,6 +68,7 @@ This isn't just another POS system. It's a **complete restaurant operations plat
 | **Audio Notifications** | Never miss a new order with configurable sound alerts |
 | **Server Attribution** | See who ordered what, with timestamps for accountability |
 | **Cancel Pending Items** | Remove items before preparation starts |
+| **WebSocket Updates** | Real-time status sync between kitchen and POS via Socket.IO |
 
 ### For Management
 
@@ -141,12 +145,13 @@ This project leverages a modern, production-ready stack:
 
 **Backend**
 - **tRPC** — End-to-end type safety between client and server
+- **Socket.IO** — Real-time WebSocket communication for instant updates
 - **Drizzle ORM** — Type-safe database queries with zero overhead
 - **PostgreSQL 15** — Battle-tested relational database
 - **Zod** — Runtime validation with static type inference
 
 **Infrastructure**
-- **Docker Compose** — One-command development environment
+- **Docker Compose** — One-command development environment (Frontend, PostgreSQL, Socket.IO)
 - **Vite** — Sub-second HMR and optimized production builds
 
 ---

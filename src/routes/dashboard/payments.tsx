@@ -32,14 +32,61 @@ export const Route = createFileRoute('/dashboard/payments')({
 type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'cancelled'
 type PaymentMethod = 'cash' | 'card' | 'digital_wallet'
 
+// Helper to calculate date ranges
+function getDateRange(range: 'today' | 'week' | 'month' | 'year') {
+  const now = new Date()
+  const end = new Date(now)
+  end.setHours(23, 59, 59, 999)
+  
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  
+  switch (range) {
+    case 'today':
+      break
+    case 'week':
+      start.setDate(start.getDate() - 6)
+      break
+    case 'month':
+      start.setDate(start.getDate() - 29)
+      break
+    case 'year':
+      start.setFullYear(start.getFullYear() - 1)
+      start.setDate(start.getDate() + 1)
+      break
+  }
+  
+  return {
+    startDate: start.toISOString().split('T')[0],
+    endDate: end.toISOString().split('T')[0],
+  }
+}
+
 function PaymentsPage() {
   const trpc = useTRPC()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all')
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'all'>('all')
+  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today')
+  const [customStart, setCustomStart] = useState<string>(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 7)
+    return d.toISOString().split('T')[0]
+  })
+  const [customEnd, setCustomEnd] = useState<string>(() => new Date().toISOString().split('T')[0])
 
-  // Fetch payments from database
-  const { data: payments = [], isLoading } = useQuery(trpc.payments.list.queryOptions())
+  // Calculate date range based on selection
+  const { startDate, endDate } = useMemo(() => {
+    if (dateRange === 'custom') {
+      return { startDate: customStart, endDate: customEnd }
+    }
+    return getDateRange(dateRange)
+  }, [dateRange, customStart, customEnd])
+
+  // Fetch payments from database with date filter
+  const { data: payments = [], isLoading } = useQuery(
+    trpc.payments.list.queryOptions({ startDate, endDate })
+  )
 
   // Filter payments
   const filteredPayments = useMemo(() => {
@@ -120,10 +167,48 @@ function PaymentsPage() {
           <h1 className="text-2xl font-bold text-white">Payments</h1>
           <p className="text-gray-400">Manage and track all payments</p>
         </div>
-        <Button variant="outline" className="border-slate-700 text-gray-300">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-slate-800 rounded-lg border border-slate-700 p-1">
+            {(['today', 'week', 'month', 'year', 'custom'] as const).map((range) => (
+              <button
+                key={range}
+                type="button"
+                onClick={() => setDateRange(range)}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  dateRange === range
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {range.charAt(0).toUpperCase() + range.slice(1)}
+              </button>
+            ))}
+          </div>
+          {dateRange === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                max={customEnd}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+              <span className="text-gray-400">to</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                min={customStart}
+                max={new Date().toISOString().split('T')[0]}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
+          )}
+          <Button variant="outline" className="border-slate-700">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

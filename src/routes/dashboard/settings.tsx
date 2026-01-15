@@ -169,7 +169,7 @@ function SettingsPage() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            className="border-slate-700 text-gray-300"
+            className="border-slate-700"
             onClick={handleReset}
           >
             <RotateCcw className="w-4 h-4 mr-2" />

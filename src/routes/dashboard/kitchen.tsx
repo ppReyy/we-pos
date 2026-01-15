@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, use } from 'react'
 import { useTRPC } from '../../integrations/trpc/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RoleGuard } from '../../components/RoleGuard'
 import { Button } from '../../components/ui/button'
+import { useSocket } from '@/hooks/useSocket'
 import {
   CheckCircle,
   Bell,
@@ -32,16 +33,20 @@ type ItemStatus = 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled'
 
 function KitchenPage() {
   const trpc = useTRPC()
+  const { socket, connect } = useSocket()
   const queryClient = useQueryClient()
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [filter, setFilter] = useState<'all' | 'pending' | 'preparing' | 'ready'>('all')
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'food' | 'beverage'>('all')
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
+  // Connect socket on mount
+  useEffect(() => {
+    connect()
+  }, [])
   // Fetch kitchen orders from database
-  const { data: ordersData = [], isLoading } = useQuery({
+  const { data: ordersData = [], refetch: refetchOrders, isLoading } = useQuery({
     ...trpc.orders.listForKitchen.queryOptions(),
-    refetchInterval: 5000, // Auto-refresh every 5 seconds
   })
 
   // Update item status mutation
@@ -116,7 +121,10 @@ function KitchenPage() {
       itemId,
       status: newStatus,
     })
-    
+    socket?.emit('orderItemStatusChanged', {
+      itemId,
+      status: newStatus,
+    })
     // Play sound for ready items
     if (soundEnabled && newStatus === 'ready' && audioRef.current) {
       audioRef.current.play().catch(() => {})
@@ -139,6 +147,20 @@ function KitchenPage() {
       }
     })
   }
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewOrder = () => {
+      refetchOrders()
+    }
+
+    socket.on('orderToKitchen', handleNewOrder)
+
+    return () => {
+      socket.off('orderToKitchen', handleNewOrder)
+    }
+  }, [socket, refetchOrders])
 
   // Get status color
   const getStatusColor = (status: string) => {

@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d
     networks:
       - pos-network
@@ -31,6 +31,23 @@ services:
     environment:
       - HOST=0.0.0.0
       - VITE_PORT=3000
+      - DATABASE_URL=postgres://postgres:postgres123@postgres:5432/pos_system
+    depends_on:
+      - postgres
+    networks:
+      - pos-network
+
+  socketio:
+    image: node:24-alpine
+    container_name: pos-socketio
+    working_dir: /app
+    user: "${UID}:${GID}"
+    command: npx tsx src/server/socket.ts
+    volumes:
+      - .:/app
+    ports:
+      - "3001:3001"
+    environment:
       - DATABASE_URL=postgres://postgres:postgres123@postgres:5432/pos_system
     depends_on:
       - postgres
