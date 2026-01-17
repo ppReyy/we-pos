@@ -1,7 +1,7 @@
 import { createServer } from 'http'
 import { initSocketServer } from '@/lib/socket-server'
 
-const PORT = process.env.SOCKET_PORT || 3001
+const PORT = process.env.SOCKET_PORT || process.env.PORT || 3001
 
 const httpServer = createServer()
 const io = initSocketServer(httpServer)
